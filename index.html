@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marine AI - Equipment Classifier</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #e6f7ff; /* Marine AI 테마 색상 적용 */
+        }
+        .center-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            box-sizing: border-box;
+            background-color: #ffffff; /* 배경색을 흰색으로 유지 */
+        }
+        .logo {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .logo img {
+            width: 150px;
+        }
+        .title {
+            font-size: 24px;
+            color: #003366;
+            margin: 20px 0;
+        }
+        .start-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        #webcam-container, #label-container, #info-container {
+            width: 100%;
+            text-align: center;
+            margin-top: 10px;
+        }
+        #info-container {
+            margin-top: 20px;
+            text-align: left;
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            width: 90%;
+            box-sizing: border-box;
+            border-radius: 8px;
+        }
+        #label-container div {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="center-container">
+        <div class="logo">
+            <img src="1.png" alt="Marine AI Logo">
+        </div>
+        <div class="title">Marine AI 3 - Equipment Classifier</div>
+        <button class="start-btn" type="button" onclick="init()">Start</button>
+        <div id="webcam-container"></div>
+        <div id="label-container"></div>
+        <div id="info-container"></div>
+    </div>
+
+    <!-- TensorFlow 및 Teachable Machine Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        const URL = "https://b4060510.github.io/mmumodel/";
+
+        let model, webcam, labelContainer, infoContainer, maxPredictions;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = false;
+            const width = 640;
+            const height = 480;
+            webcam = new tmImage.Webcam(width, height, flip);
+
+            await webcam.setup({ facingMode: "environment" });
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            infoContainer = document.getElementById("info-container");
+
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            const highestPrediction = prediction.reduce((prev, current) => (prev.probability > current.probability) ? prev : current);
+
+            switch (highestPrediction.className) {
+                case "powder":
+                    labelContainer.childNodes[0].innerHTML = "파우더 감지됨";
+                    infoContainer.innerHTML = `
+                    <strong>CO2 소화기</strong><br>유지보수 방법: ...`;
+                    break;
+                case "foam":
+                    labelContainer.childNodes[0].innerHTML = "폼 감지됨";
+                    infoContainer.innerHTML = `
+                    <strong>FOAM 소화기</strong><br>유지보수 방법: ...`;
+                    break;
+                default:
+                    labelContainer.childNodes[0].innerHTML = "아무 항목도 감지되지 않았습니다.";
+                    infoContainer.innerHTML = "";
+            }
+        }
+    </script>
+</body>
+</html>
